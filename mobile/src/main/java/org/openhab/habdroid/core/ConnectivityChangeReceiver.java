@@ -20,7 +20,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 public class ConnectivityChangeReceiver extends BroadcastReceiver {
-    private static final String TAG = "ConnectivityChangeReceiver";
+    private static final String TAG = "CChangeReceiver";
 
     @Override
     public void onReceive(Context context, Intent intent) {

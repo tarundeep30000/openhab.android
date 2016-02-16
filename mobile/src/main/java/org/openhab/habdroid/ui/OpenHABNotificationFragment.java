@@ -1,6 +1,7 @@
 package org.openhab.habdroid.ui;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -10,11 +11,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.RequestHandle;
 
-import org.apache.http.Header;
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,9 +25,12 @@ import org.openhab.habdroid.R;
 import org.openhab.habdroid.util.Constants;
 
 import org.openhab.habdroid.model.OpenHABNotification;
+import org.openhab.habdroid.util.MyAsyncHttpClient;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A fragment representing a list of Items.
@@ -44,10 +50,10 @@ public class OpenHABNotificationFragment extends ListFragment implements SwipeRe
     private String openHABPassword = "";
 
     private OpenHABMainActivity mActivity;
-    // loopj
-    private AsyncHttpClient mAsyncHttpClient;
+
+    private MyAsyncHttpClient mAsyncHttpClient;
     // keeps track of current request to cancel it in onPause
-    private RequestHandle mRequestHandle;
+    private Request mRequestHandle;
 
     private OpenHABNotificationAdapter mNotificationAdapter;
     private ArrayList<OpenHABNotification> mNotifications;
@@ -94,7 +100,7 @@ public class OpenHABNotificationFragment extends ListFragment implements SwipeRe
     }
 
     @Override
-    public void onAttach(Activity activity) {
+    public void onAttach(Context activity) {
         super.onAttach(activity);
         Log.d(TAG, "onAttach()");
         try {
@@ -139,7 +145,7 @@ public class OpenHABNotificationFragment extends ListFragment implements SwipeRe
             Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    mRequestHandle.cancel(true);
+                    mRequestHandle.cancel();
                 }
             });
             thread.start();
@@ -167,40 +173,50 @@ public class OpenHABNotificationFragment extends ListFragment implements SwipeRe
     private void loadNotifications() {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mRequestHandle = mAsyncHttpClient.get(Constants.MYOPENHAB_BASE_URL + "/api/v1/notifications?limit=20", new AsyncHttpResponseHandler() {
+            String url = Constants.MYOPENHAB_BASE_URL + "/api/v1/notifications?limit=20";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Notifications request success");
+                                    try {
+                                        String jsonString = response;
+                                        JSONArray jsonArray = new JSONArray(jsonString);
+                                        Log.d(TAG, jsonArray.toString());
+                                        mNotifications.clear();
+                                        for(int i=0; i<jsonArray.length(); i++) {
+                                            try {
+                                                JSONObject sitemapJson = jsonArray.getJSONObject(i);
+                                                OpenHABNotification notification = new OpenHABNotification(sitemapJson);
+                                                mNotifications.add(notification);
+                                            } catch (JSONException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                        mNotificationAdapter.notifyDataSetChanged();
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Notifications request failure");
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Notifications request success");
-                    try {
-                        String jsonString = new String(responseBody, "UTF-8");
-                        JSONArray jsonArray = new JSONArray(jsonString);
-                        Log.d(TAG, jsonArray.toString());
-                        mNotifications.clear();
-                        for(int i=0; i<jsonArray.length(); i++) {
-                            try {
-                                JSONObject sitemapJson = jsonArray.getJSONObject(i);
-                                OpenHABNotification notification = new OpenHABNotification(sitemapJson);
-                                mNotifications.add(notification);
-                            } catch (JSONException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        mNotificationAdapter.notifyDataSetChanged();
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-
-                @Override
-                public void  onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Notifications request failure");
-                }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 

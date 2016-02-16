@@ -18,18 +18,27 @@ import android.speech.RecognizerIntent;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.loopj.android.http.AsyncHttpResponseHandler;
 
-import org.apache.http.Header;
-import org.apache.http.entity.StringEntity;
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import org.openhab.habdroid.R;
+import org.openhab.habdroid.model.OpenHABDiscoveryInbox;
 import org.openhab.habdroid.util.Constants;
 import org.openhab.habdroid.util.ContinuingIntentService;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 /**
@@ -64,11 +73,12 @@ public class OpenHABVoiceService extends ContinuingIntentService implements Open
     }
 
     private void initHttpClient() {
-        SharedPreferences mSettings = PreferenceManager.getDefaultSharedPreferences(this);
-        String username = mSettings.getString(Constants.PREFERENCE_USERNAME, null);
-        String password = mSettings.getString(Constants.PREFERENCE_PASSWORD, null);
-        mAsyncHttpClient = new MyAsyncHttpClient(this);
-        mAsyncHttpClient.setBasicAuth(username, password);
+        //SharedPreferences mSettings = PreferenceManager.getDefaultSharedPreferences(this);
+        //String username = mSettings.getString(Constants.PREFERENCE_USERNAME, null);
+        //String password = mSettings.getString(Constants.PREFERENCE_PASSWORD, null);
+        //mAsyncHttpClient = new MyAsyncHttpClient(this);
+        //mAsyncHttpClient.setBasicAuth(username, password);
+        mAsyncHttpClient = MyAsyncHttpClient.getInstance(this);
     }
 
     @Override
@@ -147,14 +157,14 @@ public class OpenHABVoiceService extends ContinuingIntentService implements Open
 
     private void sendItemCommand(final String itemName, final String command) {
         Log.d(TAG, "sendItemCommand(): itemName=" + itemName + ", command=" + command);
-        try {
-            performHttpPost(itemName, new StringEntity(command, "UTF-8"));
-        } catch (UnsupportedEncodingException e) {
-            Log.e(TAG, "Unable to encode command " + command, e);
-        }
+      //  try {
+            performHttpPost(itemName, command);
+       // } catch (UnsupportedEncodingException e) {
+         //   Log.e(TAG, "Unable to encode command " + command, e);
+        //}
     }
 
-    private void performHttpPost(final String itemName, final StringEntity command) {
+    private void performHttpPost(final String itemName, final String command) {
         /* Call MyAsyncHttpClient on the main UI thread in order to retrieve the callbacks correctly.
          * If calling MyAsyncHttpClient directly, the following would happen:
          * (1) MyAsyncHttpClient performs the HTTP post asynchronously
@@ -162,21 +172,35 @@ public class OpenHABVoiceService extends ContinuingIntentService implements Open
          * (3) MyAsyncHttpClient tries to call onSuccess() or onFailure(), which is not possible
          *     anymore because OpenHABVoiceService is already stopped/destroyed.
          */
+
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
-                mAsyncHttpClient.post(OpenHABVoiceService.this, mOpenHABBaseUrl + "rest/items/" + itemName,
-                        command, "text/plain;charset=UTF-8", new AsyncHttpResponseHandler() {
-                            @Override
-                            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                                Log.d(TAG, "Command was sent successfully");
-                            }
 
-                            @Override
-                            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                                Log.e(TAG, "Got command error " + statusCode, error);
-                            }
-                        });
+                String url = mOpenHABBaseUrl + "rest/items/" + itemName;
+                StringRequest request = new StringRequest
+                        (Request.Method.POST, url,
+                                new Response.Listener<String>() {
+                                    @Override
+                                    public void onResponse(String response) {
+                                        Log.d(TAG, "Command was sent successfully");
+                                    }},
+                                new Response.ErrorListener() {
+                                    @Override
+                                    public void onErrorResponse(VolleyError error) {
+                                        Log.e(TAG, "Got command error " + error.networkResponse.statusCode, error);
+                                    }
+                                }) {
+                    @Override
+                    public String getBodyContentType() {
+                        return "text/plain; charset=utf-8;";
+                    }
+                    @Override
+                    public byte[] getBody() throws AuthFailureError {
+                        return command.getBytes();
+                    }
+                };
+                mAsyncHttpClient.addToRequestQueue(request);
             }
         });
     }

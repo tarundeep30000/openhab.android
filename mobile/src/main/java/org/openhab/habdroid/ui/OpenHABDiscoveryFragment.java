@@ -1,6 +1,7 @@
 package org.openhab.habdroid.ui;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -10,20 +11,28 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.RequestHandle;
 
-import org.apache.http.Header;
+
+
+
+
 import org.openhab.habdroid.R;
 
 import org.openhab.habdroid.model.OpenHABBinding;
+import org.openhab.habdroid.util.MyAsyncHttpClient;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -41,9 +50,9 @@ public class OpenHABDiscoveryFragment extends ListFragment implements SwipeRefre
 
     private OpenHABMainActivity mActivity;
     // loopj
-    private AsyncHttpClient mAsyncHttpClient;
+    private MyAsyncHttpClient mAsyncHttpClient;
     // keeps track of current request to cancel it in onPause
-    private RequestHandle mRequestHandle;
+    private Request mRequestHandle;
 
     private OpenHABDiscoveryAdapter mDiscoveryAdapter;
     private ArrayList<OpenHABBinding> bindings;
@@ -96,7 +105,7 @@ public class OpenHABDiscoveryFragment extends ListFragment implements SwipeRefre
 
 
     @Override
-    public void onAttach(Activity activity) {
+    public void onAttach(Context activity) {
         super.onAttach(activity);
         Log.d(TAG, "onAttach()");
         try {
@@ -136,7 +145,7 @@ public class OpenHABDiscoveryFragment extends ListFragment implements SwipeRefre
             Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    mRequestHandle.cancel(true);
+                    mRequestHandle.cancel();
                 }
             });
             thread.start();
@@ -169,62 +178,80 @@ public class OpenHABDiscoveryFragment extends ListFragment implements SwipeRefre
     private void loadDiscovery() {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mRequestHandle = mAsyncHttpClient.get(openHABBaseUrl + "rest/discovery", new AsyncHttpResponseHandler() {
+            String url = openHABBaseUrl + "rest/discovery";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    String jsonString = null;
+                                    jsonString = response;
+                                    Log.d(TAG, "Discovery request success");
+                                    Log.d(TAG, jsonString);
+                                    GsonBuilder gsonBuilder = new GsonBuilder();
+                                    Gson gson = gsonBuilder.create();
+                                    discoveries.clear();
+                                    discoveries.addAll(Arrays.asList(gson.fromJson(jsonString, String[].class)));
+                                    updateDiscoverableBindings();
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Discovery request failure: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    String jsonString = null;
-                    try {
-                        jsonString = new String(responseBody, "UTF-8");
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    Log.d(TAG, "Discovery request success");
-                    Log.d(TAG, jsonString);
-                    GsonBuilder gsonBuilder = new GsonBuilder();
-                    Gson gson = gsonBuilder.create();
-                    discoveries.clear();
-                    discoveries.addAll(Arrays.asList(gson.fromJson(jsonString, String[].class)));
-                    updateDiscoverableBindings();
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-
-                @Override
-                public void  onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Discovery request failure: " + error.getMessage());
-                }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 
     private void loadBindings() {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mRequestHandle = mAsyncHttpClient.get(openHABBaseUrl + "rest/bindings", new AsyncHttpResponseHandler() {
+            String url = openHABBaseUrl + "rest/bindings";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    String jsonString = null;
+                                    jsonString = response;
+                                    Log.d(TAG, "Bindings request success");
+                                    Log.d(TAG, jsonString);
+                                    GsonBuilder gsonBuilder = new GsonBuilder();
+                                    Gson gson = gsonBuilder.create();
+                                    bindings.clear();
+                                    bindings.addAll(Arrays.asList(gson.fromJson(jsonString, OpenHABBinding[].class)));
+                                    updateDiscoverableBindings();
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Discovery request failure: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    String jsonString = null;
-                    try {
-                        jsonString = new String(responseBody, "UTF-8");
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    Log.d(TAG, "Bindings request success");
-                    Log.d(TAG, jsonString);
-                    GsonBuilder gsonBuilder = new GsonBuilder();
-                    Gson gson = gsonBuilder.create();
-                    bindings.clear();
-                    bindings.addAll(Arrays.asList(gson.fromJson(jsonString, OpenHABBinding[].class)));
-                    updateDiscoverableBindings();
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-
-                @Override
-                public void  onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Bindings request failure: " + error.getMessage());
-                }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 
@@ -247,41 +274,54 @@ public class OpenHABDiscoveryFragment extends ListFragment implements SwipeRefre
     private void activateDiscovery(String id) {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mAsyncHttpClient.post(getActivity(), openHABBaseUrl + "rest/discovery/bindings/" + id + "/scan", null, "text/plain", new AsyncHttpResponseHandler() {
-                @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    Log.d(TAG, "Activate discovery request success");
-                    if (discoveryTimer != null) {
-                        discoveryTimer.cancel();
-                        discoveryTimer.purge();
-                        discoveryTimer = null;
-                    }
-                    discoveryTimer = new Timer();
-                    discoveryTimer.schedule(new TimerTask() {
-                        @Override
-                        public void run() {
-                            Log.d(TAG, "Discovery timer ended");
-                            if (getActivity() != null) {
-                                getActivity().runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        stopProgressIndicator();
-                                        if (mActivity != null) {
-                                            mActivity.openDiscoveryInbox();
-                                        }
+            String url = openHABBaseUrl + "rest/discovery/bindings/" + id + "/scan";
+            StringRequest request = new StringRequest
+                    (Request.Method.POST, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    Log.d(TAG, "Activate discovery request success");
+                                    if (discoveryTimer != null) {
+                                        discoveryTimer.cancel();
+                                        discoveryTimer.purge();
+                                        discoveryTimer = null;
                                     }
-                                });
-                            }
-                        }
-                    }, 10000);
-                }
-
+                                    discoveryTimer = new Timer();
+                                    discoveryTimer.schedule(new TimerTask() {
+                                        @Override
+                                        public void run() {
+                                            Log.d(TAG, "Discovery timer ended");
+                                            if (getActivity() != null) {
+                                                getActivity().runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        stopProgressIndicator();
+                                                        if (mActivity != null) {
+                                                            mActivity.openDiscoveryInbox();
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                        }
+                                    }, 10000);
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.e(TAG, "Activate discovery request error: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.e(TAG, "Activate discovery request error: " + error.getMessage());
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 

@@ -21,14 +21,14 @@ import android.os.Message;
 import android.util.Log;
 import android.widget.ImageView;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.DefaultHttpClient;
+
+
+
+
+
+
+
+
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -96,7 +96,7 @@ public class MjpegStreamer {
     }
 
     public InputStream httpRequest(String url, String usr, String pwd){
-        HttpResponse res = null;
+        /*HttpResponse res = null;
         DefaultHttpClient httpclient = new DefaultHttpClient();
         CredentialsProvider credProvider = new BasicCredentialsProvider();
         credProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
@@ -122,7 +122,7 @@ public class MjpegStreamer {
             Log.d(TAG, "Request failed-IOException", e);
             //Error connecting to camera
         }
-
+*/
         return null;
 
     }

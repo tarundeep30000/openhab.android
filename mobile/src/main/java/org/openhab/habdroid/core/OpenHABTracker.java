@@ -148,11 +148,11 @@ public class OpenHABTracker implements AsyncServiceResolverListener {
     }
 
     public void stop() {
-        try {
+        /*try {
             mCtx.unregisterReceiver(mConnectivityChangeReceiver);
         } catch (RuntimeException e) {
             Log.d(TAG, e.getMessage());
-        }
+        }*/
     }
 
     public void onServiceResolved(ServiceInfo serviceInfo) {

@@ -7,7 +7,7 @@
         <item name="colorAccent">#FF5722</item>
         <item name="colorPrimaryDark">#BF360C</item>
         <item name="frameWidgetDividerBackground">@drawable/material_divider</item>
-        <item name="android:windowNoTitle">true</item>
+        <item name="windowNoTitle">true</item>
         <item name="windowActionBar">false</item>
     </style>
     <style name="HABDroid.Dark" parent="@style/Theme.AppCompat">
@@ -17,7 +17,7 @@
         <item name="colorAccent">#9E9E9E</item>
         <item name="colorPrimaryDark">#212121</item>
         <item name="frameWidgetDividerBackground">@drawable/material_divider_dark</item>
-        <item name="android:windowNoTitle">true</item>
+        <item name="windowNoTitle">true</item>
         <item name="windowActionBar">false</item>
     </style>
 </resources>

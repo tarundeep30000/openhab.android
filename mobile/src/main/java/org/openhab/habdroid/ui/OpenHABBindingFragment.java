@@ -1,6 +1,7 @@
 package org.openhab.habdroid.ui;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -10,23 +11,31 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.RequestHandle;
 
-import org.apache.http.Header;
+
+
+
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.openhab.habdroid.R;
 
 import org.openhab.habdroid.model.OpenHABBinding;
+import org.openhab.habdroid.util.MyAsyncHttpClient;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class OpenHABBindingFragment extends ListFragment implements SwipeRefreshLayout.OnRefreshListener {
 
@@ -42,9 +51,9 @@ public class OpenHABBindingFragment extends ListFragment implements SwipeRefresh
 
     private OpenHABMainActivity mActivity;
     // loopj
-    private AsyncHttpClient mAsyncHttpClient;
+    private MyAsyncHttpClient mAsyncHttpClient;
     // keeps track of current request to cancel it in onPause
-    private RequestHandle mRequestHandle;
+    private Request mRequestHandle;
 
     private OpenHABBindingAdapter mBindingAdapter;
     private ArrayList<OpenHABBinding> mBindings;
@@ -94,7 +103,7 @@ public class OpenHABBindingFragment extends ListFragment implements SwipeRefresh
 
 
     @Override
-    public void onAttach(Activity activity) {
+    public void onAttach(Context activity) {
         super.onAttach(activity);
         Log.d(TAG, "onAttach()");
         try {
@@ -132,7 +141,7 @@ public class OpenHABBindingFragment extends ListFragment implements SwipeRefresh
             Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    mRequestHandle.cancel(true);
+                    mRequestHandle.cancel();
                 }
             });
             thread.start();
@@ -171,31 +180,40 @@ public class OpenHABBindingFragment extends ListFragment implements SwipeRefresh
     private void loadBindings() {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mRequestHandle = mAsyncHttpClient.get(openHABBaseUrl + "rest/bindings", new AsyncHttpResponseHandler() {
+            String url = openHABBaseUrl + "rest/bindings";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    String jsonString = null;
+                                    jsonString = response;
+                                    Log.d(TAG, "Bindings request success");
+                                    Log.d(TAG, jsonString);
+                                    GsonBuilder gsonBuilder = new GsonBuilder();
+                                    Gson gson = gsonBuilder.create();
+                                    mBindings.clear();
+                                    mBindings.addAll(Arrays.asList(gson.fromJson(jsonString, OpenHABBinding[].class)));
+                                    mBindingAdapter.notifyDataSetChanged();
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Bindings request failure: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    String jsonString = null;
-                    try {
-                        jsonString = new String(responseBody, "UTF-8");
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    Log.d(TAG, "Bindings request success");
-                    Log.d(TAG, jsonString);
-                    GsonBuilder gsonBuilder = new GsonBuilder();
-                    Gson gson = gsonBuilder.create();
-                    mBindings.clear();
-                    mBindings.addAll(Arrays.asList(gson.fromJson(jsonString, OpenHABBinding[].class)));
-                    mBindingAdapter.notifyDataSetChanged();
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-
-                @Override
-                public void  onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Bindings request failure: " + error.getMessage());
-                }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 

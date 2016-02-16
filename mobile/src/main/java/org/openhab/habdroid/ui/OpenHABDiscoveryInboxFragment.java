@@ -2,6 +2,7 @@ package org.openhab.habdroid.ui;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
@@ -12,22 +13,30 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.RequestHandle;
+
+
+
 import com.software.shell.fab.ActionButton;
 
-import org.apache.http.Header;
+
 import org.openhab.habdroid.R;
 
 import org.openhab.habdroid.model.OpenHABDiscoveryInbox;
 import org.openhab.habdroid.model.thing.ThingType;
+import org.openhab.habdroid.util.MyAsyncHttpClient;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class OpenHABDiscoveryInboxFragment extends ListFragment implements SwipeRefreshLayout.OnRefreshListener {
 
@@ -42,10 +51,10 @@ public class OpenHABDiscoveryInboxFragment extends ListFragment implements Swipe
     private String openHABBaseUrl = "";
 
     private OpenHABMainActivity mActivity;
-    // loopj
-    private AsyncHttpClient mAsyncHttpClient;
+
+    private MyAsyncHttpClient mAsyncHttpClient;
     // keeps track of current request to cancel it in onPause
-    private RequestHandle mRequestHandle;
+    private Request mRequestHandle;
 
     private OpenHABDiscoveryInboxAdapter mDiscoveryInboxAdapter;
     private ArrayList<OpenHABDiscoveryInbox> mDiscoveryInbox;
@@ -113,7 +122,7 @@ public class OpenHABDiscoveryInboxFragment extends ListFragment implements Swipe
 
 
     @Override
-    public void onAttach(Activity activity) {
+    public void onAttach(Context activity) {
         super.onAttach(activity);
         Log.d(TAG, "onAttach()");
         try {
@@ -153,7 +162,7 @@ public class OpenHABDiscoveryInboxFragment extends ListFragment implements Swipe
             Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    mRequestHandle.cancel(true);
+                    mRequestHandle.cancel();
                 }
             });
             thread.start();
@@ -205,103 +214,166 @@ public class OpenHABDiscoveryInboxFragment extends ListFragment implements Swipe
     private void loadDiscoveryInbox() {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mRequestHandle = mAsyncHttpClient.get(openHABBaseUrl + "rest/inbox", new AsyncHttpResponseHandler() {
+            String url = openHABBaseUrl + "rest/inbox";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    String jsonString = null;
+                                    jsonString = response;
+                                    Log.d(TAG, "Inbox request success");
+                                    Log.d(TAG, jsonString);
+                                    GsonBuilder gsonBuilder = new GsonBuilder();
+                                    Gson gson = gsonBuilder.create();
+                                    mDiscoveryInbox.clear();
+                                    mDiscoveryInbox.addAll(Arrays.asList(gson.fromJson(jsonString, OpenHABDiscoveryInbox[].class)));
+                                    mDiscoveryInboxAdapter.notifyDataSetChanged();
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Inbox request failure: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    String jsonString = null;
-                    try {
-                        jsonString = new String(responseBody, "UTF-8");
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    Log.d(TAG, "Inbox request success");
-                    Log.d(TAG, jsonString);
-                    GsonBuilder gsonBuilder = new GsonBuilder();
-                    Gson gson = gsonBuilder.create();
-                    mDiscoveryInbox.clear();
-                    mDiscoveryInbox.addAll(Arrays.asList(gson.fromJson(jsonString, OpenHABDiscoveryInbox[].class)));
-                    mDiscoveryInboxAdapter.notifyDataSetChanged();
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
 
                 @Override
-                public void  onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Inbox request failure: " + error.getMessage());
+                protected Map<String, String> getParams() {
+                    Map<String,String> map = new HashMap<>();
+                    return map;
                 }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 
     private void loadThingTypes () {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mRequestHandle = mAsyncHttpClient.get(openHABBaseUrl + "rest/thing-types", new AsyncHttpResponseHandler() {
+
+            String url = openHABBaseUrl + "rest/thing-types";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    String jsonString = null;
+                                    jsonString = response;
+                                    Log.d(TAG, "Thing types request success");
+                                    Log.d(TAG, jsonString);
+                                    GsonBuilder gsonBuilder = new GsonBuilder();
+                                    Gson gson = gsonBuilder.create();
+                                    mThingTypes.clear();
+                                    mThingTypes.addAll(Arrays.asList(gson.fromJson(jsonString, ThingType[].class)));
+                                    mDiscoveryInboxAdapter.setThingTypes(mThingTypes);
+                                    mDiscoveryInboxAdapter.notifyDataSetChanged();
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Thing types request failure: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    String jsonString = null;
-                    try {
-                        jsonString = new String(responseBody, "UTF-8");
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    Log.d(TAG, "Thing types request success");
-                    Log.d(TAG, jsonString);
-                    GsonBuilder gsonBuilder = new GsonBuilder();
-                    Gson gson = gsonBuilder.create();
-                    mThingTypes.clear();
-                    mThingTypes.addAll(Arrays.asList(gson.fromJson(jsonString, ThingType[].class)));
-                    mDiscoveryInboxAdapter.setThingTypes(mThingTypes);
-                    mDiscoveryInboxAdapter.notifyDataSetChanged();
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
 
                 @Override
-                public void  onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Thing types request failure: " + error.getMessage());
+                protected Map<String, String> getParams() {
+                    Map<String,String> map = new HashMap<>();
+                    return map;
                 }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 
     private void sendInboxApprove(String UID) {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mAsyncHttpClient.post(getActivity(), openHABBaseUrl + "rest/inbox/" + UID + "/approve", null, "text/plain", new AsyncHttpResponseHandler() {
+            String url = openHABBaseUrl + "rest/inbox/" + UID + "/approve";
+            StringRequest request = new StringRequest
+                    (Request.Method.POST, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Inbox approve request success");
+                                    refresh();
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.e(TAG, "Inbox approve request error: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Inbox approve request success");
-                    refresh();
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
 
                 @Override
-                public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.e(TAG, "Inbox approve request error: " + error.getMessage());
+                protected Map<String, String> getParams() {
+                    Map<String,String> map = new HashMap<>();
+                    return map;
                 }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 
     private void sendInboxIgnore(String UID) {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mAsyncHttpClient.post(getActivity(), openHABBaseUrl + "rest/inbox/" + UID + "/ignore", null, "text/plain", new AsyncHttpResponseHandler() {
+            String url = openHABBaseUrl + "rest/inbox/" + UID + "/ignore";
+            StringRequest request = new StringRequest
+                    (Request.Method.POST, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Inbox ignore request success");
+                                    refresh();
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.e(TAG, "Inbox ignore request error: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Inbox ignore request success");
-                    refresh();
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.e(TAG, "Inbox ignore request error: " + error.getMessage());
-                }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 
@@ -309,20 +381,39 @@ public class OpenHABDiscoveryInboxFragment extends ListFragment implements Swipe
     private void sendInboxDelete(String UID) {
         if (mAsyncHttpClient != null) {
             startProgressIndicator();
-            mAsyncHttpClient.delete(getActivity(), openHABBaseUrl + "rest/inbox/" + UID, new AsyncHttpResponseHandler() {
+            String url = openHABBaseUrl + "rest/inbox/" + UID;
+            StringRequest request = new StringRequest
+                    (Request.Method.DELETE, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    stopProgressIndicator();
+                                    Log.d(TAG, "Inbox delete request success");
+                                    refresh();
+                                }},
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    stopProgressIndicator();
+                                    Log.e(TAG, "Inbox ignore request error: " + error.getMessage());
+                                }
+                            }) {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    stopProgressIndicator();
-                    Log.d(TAG, "Inbox delete request success");
-                    refresh();
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
 
                 @Override
-                public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    stopProgressIndicator();
-                    Log.e(TAG, "Inbox delete request error: " + error.getMessage());
+                protected Map<String, String> getParams() {
+                    Map<String,String> map = new HashMap<>();
+                    return map;
                 }
-            });
+            };
+            mRequestHandle = request;
+            MyAsyncHttpClient.getInstance(getActivity()).addToRequestQueue(request);
         }
     }
 

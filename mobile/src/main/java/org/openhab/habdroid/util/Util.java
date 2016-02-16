@@ -62,7 +62,7 @@ public class Util {
             if (!normalizedUrl.endsWith("/"))
                 normalizedUrl = normalizedUrl + "/";
         } catch (MalformedURLException e) {
-            Log.e(TAG, "normalizeUrl: invalid URL");
+            Log.e(TAG, "normalizeUrl: invalid URL" + sourceUrl);
         }
         return normalizedUrl;
     }

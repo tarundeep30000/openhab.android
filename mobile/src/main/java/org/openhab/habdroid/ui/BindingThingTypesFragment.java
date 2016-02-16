@@ -1,6 +1,7 @@
 package org.openhab.habdroid.ui;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -10,11 +11,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.RequestHandle;
+
+import com.android.volley.Request;
 
 import org.openhab.habdroid.R;
 import org.openhab.habdroid.model.thing.ThingType;
+import org.openhab.habdroid.util.MyAsyncHttpClient;
 
 import java.util.ArrayList;
 
@@ -25,10 +27,10 @@ public class BindingThingTypesFragment extends ListFragment implements SwipeRefr
     private static final String ARG_THINGTYPES = "thingTypes";
 
     private OpenHABMainActivity mActivity;
-    // loopj
-    private AsyncHttpClient mAsyncHttpClient;
+
+    private MyAsyncHttpClient mAsyncHttpClient;
     // keeps track of current request to cancel it in onPause
-    private RequestHandle mRequestHandle;
+    private Request mRequestHandle;
 
     private BindingThingTypesAdapter bindingThingTypesAdapter;
     private ArrayList<ThingType> thingTypes;
@@ -73,15 +75,15 @@ public class BindingThingTypesFragment extends ListFragment implements SwipeRefr
     }
 
     @Override
-    public void onAttach(Activity activity) {
-        super.onAttach(activity);
+    public void onAttach(Context ctx) {
+        super.onAttach(ctx);
         Log.d(TAG, "onAttach()");
         try {
-            mActivity = (OpenHABMainActivity) activity;
-            mAsyncHttpClient = mActivity.getAsyncHttpClient();
+            mActivity = (OpenHABMainActivity) ctx;
+            mAsyncHttpClient = MyAsyncHttpClient.getInstance(ctx);
             mActivity.setTitle(R.string.app_bindings_supportedthings);
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString()
+            throw new ClassCastException(ctx.toString()
                     + " must be OpenHABMainActivity");
         }
     }
@@ -111,7 +113,7 @@ public class BindingThingTypesFragment extends ListFragment implements SwipeRefr
             Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    mRequestHandle.cancel(true);
+                    mRequestHandle.cancel();
                 }
             });
             thread.start();

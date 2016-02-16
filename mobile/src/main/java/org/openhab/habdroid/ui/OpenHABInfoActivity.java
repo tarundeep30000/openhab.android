@@ -19,13 +19,19 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.TextHttpResponseHandler;
 
-import org.apache.http.Header;
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+
 import org.openhab.habdroid.R;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 import org.openhab.habdroid.util.Util;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class OpenHABInfoActivity extends Activity {
 
@@ -45,7 +51,7 @@ public class OpenHABInfoActivity extends Activity {
         Util.setActivityTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.openhabinfo);
-        mAsyncHttpClient = new MyAsyncHttpClient(this);
+        mAsyncHttpClient = MyAsyncHttpClient.getInstance(this);
         mOpenHABVersionText = (TextView)findViewById(R.id.openhab_version);
         mOpenHABUUIDText = (TextView)findViewById(R.id.openhab_uuid);
         mOpenHABSecretText = (TextView)findViewById(R.id.openhab_secret);
@@ -54,7 +60,7 @@ public class OpenHABInfoActivity extends Activity {
             mOpenHABBaseUrl = getIntent().getStringExtra("openHABBaseUrl");
             mUsername = getIntent().getStringExtra("username");
             mPassword = getIntent().getStringExtra("password");
-            mAsyncHttpClient.setBasicAuth(mUsername, mPassword);
+            //mAsyncHttpClient.setBasicAuth(mUsername, mPassword);
         } else {
             Log.e(TAG, "No openHABBaseURl parameter passed, can't fetch openHAB info from nowhere");
             finish();
@@ -65,55 +71,100 @@ public class OpenHABInfoActivity extends Activity {
     public void onResume() {
         Log.d(TAG, "onResume()");
         super.onResume();
-        Log.d(TAG, "url = " + mOpenHABBaseUrl + "static/version");
-        mAsyncHttpClient.get(mOpenHABBaseUrl + "static/version", new TextHttpResponseHandler() {
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable error) {
-                mOpenHABVersionText.setText("Unknown");
-                if (error.getMessage() != null) {
-                    Log.e(TAG, error.getMessage());
+        {
+            Log.d(TAG, "url = " + mOpenHABBaseUrl + "static/version");
+            String url = mOpenHABBaseUrl + "static/version";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    Log.d(TAG, "Got version = " + response);
+                                    mOpenHABVersionText.setText(response);
+                                }
+                            },
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    mOpenHABVersionText.setText("Unknown");
+                                    if (error.getMessage() != null) {
+                                        Log.e(TAG, error.getMessage());
+                                    }
+                                }
+                            }) {
+                @Override
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-            }
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, String responseString) {
-                Log.d(TAG, "Got version = " + responseString);
-                mOpenHABVersionText.setText(responseString);
-            }
-        });
-        mAsyncHttpClient.get(mOpenHABBaseUrl + "static/uuid", new TextHttpResponseHandler() {
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable error) {
-                mOpenHABUUIDText.setText("Unknown");
-                if (error.getMessage() != null) {
-                    Log.e(TAG, error.getMessage());
+            };
+            MyAsyncHttpClient.getInstance(this).addToRequestQueue(request);
+        }
+        {
+            String url = mOpenHABBaseUrl + "static/uuid";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    Log.d(TAG, "Got uuid = " + response);
+                                    mOpenHABUUIDText.setText(response);
+                                }
+                            },
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    mOpenHABUUIDText.setText("Unknown");
+                                    if (error.getMessage() != null) {
+                                        Log.e(TAG, error.getMessage());
+                                    }
+                                }
+                            }) {
+                @Override
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-            }
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, String responseString) {
-                Log.d(TAG, "Got uuid = " + responseString);
-                mOpenHABUUIDText.setText(responseString);
-            }
-        });
-        mAsyncHttpClient.get(mOpenHABBaseUrl + "static/secret", new TextHttpResponseHandler() {
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable error) {
-                mOpenHABSecretText.setVisibility(View.GONE);
-                mOpenHABSecretLabel.setVisibility(View.GONE);
-                if (error.getMessage() != null) {
-                    Log.e(TAG, error.getMessage());
+            };
+            MyAsyncHttpClient.getInstance(this).addToRequestQueue(request);
+        }
+        {
+            String url = mOpenHABBaseUrl + "static/secret";
+            StringRequest request = new StringRequest
+                    (Request.Method.GET, url,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    Log.d(TAG, "Got secret = " + response);
+                                    mOpenHABSecretText.setVisibility(View.VISIBLE);
+                                    mOpenHABSecretLabel.setVisibility(View.VISIBLE);
+                                    mOpenHABSecretText.setText(response);
+                                }
+                            },
+                            new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    mOpenHABSecretText.setVisibility(View.GONE);
+                                    mOpenHABSecretLabel.setVisibility(View.GONE);
+                                    if (error.getMessage() != null) {
+                                        Log.e(TAG, error.getMessage());
+                                    }
+                                }
+                            }) {
+                @Override
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "text/plain; charset=utf-8");
+                    headers.put("User-agent", "My useragent");
+                    return headers;
                 }
-            }
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, String responseString) {
-                Log.d(TAG, "Got secret = " + responseString);
-                mOpenHABSecretText.setVisibility(View.VISIBLE);
-                mOpenHABSecretLabel.setVisibility(View.VISIBLE);
-                mOpenHABSecretText.setText(responseString);
-            }
-        });
+            };
+            MyAsyncHttpClient.getInstance(this).addToRequestQueue(request);
+        }
     }
 
         @Override

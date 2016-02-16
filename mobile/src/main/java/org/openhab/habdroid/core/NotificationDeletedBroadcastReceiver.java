@@ -27,7 +27,7 @@ import org.openhab.habdroid.ui.OpenHABMainActivity;
 import java.io.IOException;
 
 public class NotificationDeletedBroadcastReceiver extends BroadcastReceiver {
-    private final static String TAG = "NotificationDeletedBroadcastReceiver";
+    private final static String TAG = "NDBReceiver";
     private GoogleCloudMessaging gcm;
     private Bundle sendBundle;
 

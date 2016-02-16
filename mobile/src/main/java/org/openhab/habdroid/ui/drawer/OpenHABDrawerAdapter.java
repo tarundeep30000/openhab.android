@@ -23,12 +23,16 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.squareup.picasso.Callback;
+import com.squareup.picasso.Picasso;
+
 import org.openhab.habdroid.R;
-import org.openhab.habdroid.util.MySmartImageView;
+import org.openhab.habdroid.util.ImageWithUrl;
 
 import java.util.List;
 
@@ -41,7 +45,7 @@ public class OpenHABDrawerAdapter extends ArrayAdapter<OpenHABDrawerItem> {
     public static final int TYPE_DIVIDER_ITEM = 4;
     public static final int TYPES_COUNT = 5;
     private static final String TAG = "OpenHABDrawerAdapter";
-    private String openHABBaseUrl = "http://demo.openhab.org:8080/";
+    private String openHABBaseUrl = "http://dazhomes.com:8080/";
     private String openHABUsername = "";
     private String openHABPassword = "";
 
@@ -50,14 +54,13 @@ public class OpenHABDrawerAdapter extends ArrayAdapter<OpenHABDrawerItem> {
         super(context, resource, objects);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         final RelativeLayout drawerItemView;
         LinearLayout drawerDivider;
         TextView drawerItemLabelTextView;
         TextView drawerItemCountLabelTextView;
-        MySmartImageView drawerItemImage;
+        final ImageView drawerItemImage;
         int drawerItemLayout;
         OpenHABDrawerItem drawerItem = getItem(position);
         switch (this.getItemViewType(position)) {
@@ -93,7 +96,7 @@ public class OpenHABDrawerAdapter extends ArrayAdapter<OpenHABDrawerItem> {
         // Find all needed views
         drawerItemLabelTextView = (TextView)drawerItemView.findViewById(R.id.itemlabel);
         drawerItemCountLabelTextView = (TextView)drawerItemView.findViewById(R.id.itemcountlabel);
-        drawerItemImage = (MySmartImageView)drawerItemView.findViewById(R.id.itemimage);
+        drawerItemImage = (ImageView)drawerItemView.findViewById(R.id.itemimage);
         switch (this.getItemViewType(position)) {
             case TYPE_SITEMAPITEM:
                 if (drawerItem.getSiteMap().getLabel() != null && drawerItemLabelTextView != null) {
@@ -101,13 +104,15 @@ public class OpenHABDrawerAdapter extends ArrayAdapter<OpenHABDrawerItem> {
                 } else {
                     drawerItemLabelTextView.setText(drawerItem.getSiteMap().getName());
                 }
-                if (drawerItem.getSiteMap().getIcon() != null && drawerItemImage != null) {
-                    String iconUrl = openHABBaseUrl + "images/" + Uri.encode(drawerItem.getSiteMap().getIcon() + ".png");
-                    drawerItemImage.setImageUrl(iconUrl, R.drawable.openhabiconsmall,
-                            openHABUsername, openHABPassword);
+            if (drawerItem.getSiteMap().getIcon() != null && drawerItemImage != null) {
+                    final String iconUrl = openHABBaseUrl + "images/" + Uri.encode(drawerItem.getSiteMap().getIcon() + ".png");
+                    //drawerItemImage.setImageUrl(iconUrl, R.drawable.openhabiconsmall,
+                    //        openHABUsername, openHABPassword);
+                ImageWithUrl.loadImageUrl(drawerItemImage, iconUrl, R.drawable.openhabiconsmall);
                 } else {
-                    String iconUrl = openHABBaseUrl + "images/" + ".png";
-                    drawerItemImage.setImageDrawable(getContext().getResources().getDrawable(R.drawable.openhabicon_light));
+                   // String iconUrl = openHABBaseUrl + "images/" + ".png";
+                    drawerItemImage.setImageResource(R.drawable.openhabicon_light);
+                    //drawerItemImage.setImageDrawable(getContext().getResources().getDrawable(R.drawable.openhabicon_light));
                 }
                 break;
             case TYPE_DIVIDER_ITEM:

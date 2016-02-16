@@ -10,7 +10,6 @@
  *  @since 1.4.0
  *
  */
-
 package org.openhab.habdroid.util;
 
 import android.content.Context;
@@ -18,13 +17,13 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.widget.ImageView;
 
-import com.loopj.android.image.SmartImageView;
 
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MySmartImageView extends SmartImageView {
+public class MySmartImageView extends ImageView {
 	private String myImageUrl;
 	private Timer imageRefreshTimer;
 	
@@ -54,36 +53,9 @@ public class MySmartImageView extends SmartImageView {
     
     public void setImageUrl(String url, final Integer fallbackResource) {
     	this.myImageUrl = url;
-        setImage(new MyWebImage(url), fallbackResource, null);
+        setImage(new MyWebImage(url));
     }
 
-    public void setImageUrl(String url, final Integer fallbackResource, String username, String password) {
-    	this.myImageUrl = url;
-        setImage(new MyWebImage(url, username, password), fallbackResource, null);
-    }
-    
-    public void setImageUrl(String url, final Integer fallbackResource, final Integer loadingResource) {
-    	this.myImageUrl = url;
-        setImage(new MyWebImage(url), fallbackResource, loadingResource);
-    }
-
-    public void setImageUrl(String url, final Integer fallbackResource, final Integer loadingResource, String username, String password) {
-    	this.myImageUrl = url;
-        setImage(new MyWebImage(url, username, password), fallbackResource, loadingResource);
-    }
-    
-    public void setImageUrl(String url, boolean useImageCache) {
-    	this.myImageUrl = url;
-    	this.useImageCache = useImageCache;
-        setImage(new MyWebImage(url, useImageCache));
-    }
-
-    public void setImageUrl(String url, boolean useImageCache, String username, String password) {
-    	this.myImageUrl = url;
-    	this.useImageCache = useImageCache;
-        setImage(new MyWebImage(url, useImageCache, username, password));
-    }
-    
     public void setRefreshRate(int msec) {
     	Log.i("MySmartImageView", "Setting image refresh rate to " + msec + " msec");
     	if (this.imageRefreshTimer != null)
@@ -102,7 +74,8 @@ public class MySmartImageView extends SmartImageView {
 			}
     	}, msec, msec);
     }
-    
+    void setImage(MyWebImage img) {
+    } 
     public void cancelRefresh() {
     	if (this.imageRefreshTimer != null)
     		this.imageRefreshTimer.cancel();

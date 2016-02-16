@@ -11,9 +11,10 @@
  *
  */
 
+/*
 package org.openhab.habdroid.util;
 
-import org.apache.http.conn.ssl.SSLSocketFactory;
+
 
 import java.io.IOException;
 import java.net.Socket;
@@ -27,11 +28,17 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
 public class MySSLSocketFactory extends SSLSocketFactory {
     SSLContext sslContext = SSLContext.getInstance("TLS");
+
+    @Override
+    public Socket createSocket(String host, int port) throws IOException {
+        return null;
+    }
 
     public MySSLSocketFactory(KeyStore truststore) throws NoSuchAlgorithmException, KeyManagementException, KeyStoreException, UnrecoverableKeyException {
         super(truststore);
@@ -66,3 +73,4 @@ public class MySSLSocketFactory extends SSLSocketFactory {
         return sslContext.getSocketFactory().createSocket();
     }
 }
+*/
